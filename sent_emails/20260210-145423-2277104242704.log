@@ -1,0 +1,24 @@
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Subject: Studistics password reset request
+From: studistics@example.com
+To: 12302130501035@gcet.ac.in
+Date: Tue, 10 Feb 2026 09:24:23 -0000
+Message-ID: <177071546310.42508.11247575855202298708@meet_rana>
+
+
+Hi,
+
+You're receiving this email because a password reset was requested for your account.
+
+Please click the link below to reset your password:
+
+http://127.0.0.1:8000/reset/NA/d3shen-c911c3012744acc666456c13a4b123c5/
+
+If you didn't request this, you can ignore this email.
+
+Thanks,
+Studistics Team
+
+-------------------------------------------------------------------------------

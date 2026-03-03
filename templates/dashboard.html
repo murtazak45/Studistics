@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="max-w-6xl mx-auto">
+
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h2 class="text-3xl font-bold text-gray-800">
+            Dashboard
+        </h2>
+        <p class="text-gray-500 mt-2">
+            Track your subjects and monitor topic confidence levels.
+        </p>
+    </div>
+
+
+    <!-- SUBJECTS SECTION -->
+    <div class="mb-12">
+        <h3 class="text-xl font-semibold text-gray-700 mb-4">
+            Your Subjects
+        </h3>
+
+        {% if subjects %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                {% for subject in subjects %}
+                <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+
+                    <h4 class="text-lg font-semibold text-gray-800">
+                        {{ subject.name }}
+                    </h4>
+
+                    <p class="text-sm text-gray-500 mt-2">
+                        {{ subject.description|default:"No description available." }}
+                    </p>
+
+                </div>
+                {% endfor %}
+
+            </div>
+        {% else %}
+            <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
+                <p class="text-gray-600 font-medium">
+                    No subjects added yet.
+                </p>
+                <p class="text-sm text-gray-400 mt-2">
+                    Start by adding your first subject.
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+
+    <!-- TOPICS SECTION -->
+    <div>
+        <h3 class="text-xl font-semibold text-gray-700 mb-4">
+            Topics Overview
+        </h3>
+
+        {% if topics %}
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+
+                <table class="w-full text-left">
+                    <thead class="bg-gray-100 text-sm text-gray-600">
+                        <tr>
+                            <th class="px-6 py-3">Topic</th>
+                            <th class="px-6 py-3">Subject</th>
+                            <th class="px-6 py-3">Confidence</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200 text-sm">
+
+                        {% for topic in topics %}
+                        <tr>
+                            <td class="px-6 py-4 font-medium text-gray-800">
+                                {{ topic.name }}
+                            </td>
+                            <td class="px-6 py-4 text-gray-600">
+                                {{ topic.subject.name }}
+                            </td>
+                            <td class="px-6 py-4">
+
+                                {% if topic.confidence == "Weak" %}
+                                    <span class="px-3 py-1 text-xs rounded-full bg-red-100 text-red-600">
+                                        Weak
+                                    </span>
+                                {% elif topic.confidence == "Moderate" %}
+                                    <span class="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-600">
+                                        Moderate
+                                    </span>
+                                {% else %}
+                                    <span class="px-3 py-1 text-xs rounded-full bg-green-100 text-green-600">
+                                        Strong
+                                    </span>
+                                {% endif %}
+
+                            </td>
+                        </tr>
+                        {% endfor %}
+
+                    </tbody>
+                </table>
+
+            </div>
+        {% else %}
+            <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
+                <p class="text-gray-600 font-medium">
+                    No topics available.
+                </p>
+                <p class="text-sm text-gray-400 mt-2">
+                    Add topics to start tracking your confidence levels.
+                </p>
+            </div>
+        {% endif %}
+    </div>
+
+</div>
+
+{% endblock %}

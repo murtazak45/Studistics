@@ -1,0 +1,91 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Studistics</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+
+<div class="flex min-h-screen">
+
+    <!-- SIDEBAR -->
+    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+
+        <!-- Logo Section -->
+        <div class="p-6 border-b border-gray-200">
+            <h1 class="text-2xl font-bold text-indigo-600 tracking-tight">
+                Studistics
+            </h1>
+            <p class="text-sm text-gray-500 mt-1">
+                Study Planning System
+            </p>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 p-4">
+            <ul class="space-y-2">
+
+                <li>
+                    <a href="{% url 'dashboard' %}"
+                       class="flex items-center px-4 py-3 rounded-lg transition
+                       {% if request.path == '/dashboard/' %}
+                           bg-indigo-50 text-indigo-600 font-medium
+                       {% else %}
+                           text-gray-600 hover:bg-gray-100
+                       {% endif %}">
+                        Dashboard
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{% url 'add_subject' %}"
+                       class="flex items-center px-4 py-3 rounded-lg transition
+                       {% if request.path == '/add-subject/' %}
+                           bg-indigo-50 text-indigo-600 font-medium
+                       {% else %}
+                           text-gray-600 hover:bg-gray-100
+                       {% endif %}">
+                        Add Subject
+                    </a>
+                </li>
+
+                <li>
+                    <a href="{% url 'add_topic' %}"
+                       class="flex items-center px-4 py-3 rounded-lg transition
+                       {% if request.path == '/add-topic/' %}
+                           bg-indigo-50 text-indigo-600 font-medium
+                       {% else %}
+                           text-gray-600 hover:bg-gray-100
+                       {% endif %}">
+                        Add Topic
+                    </a>
+                </li>
+
+            </ul>
+        </nav>
+
+        <!-- Bottom Section -->
+        <div class="p-4 border-t border-gray-200">
+            <a href="{% url 'logout' %}"
+               class="block text-center bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition">
+                Logout
+            </a>
+        </div>
+
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 p-10">
+
+        {% block content %}
+        {% endblock %}
+
+    </main>
+
+</div>
+
+</body>
+</html>
