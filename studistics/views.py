@@ -1,14 +1,17 @@
 """
 Views for studistics app.
 """
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
-from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.views import PasswordResetView
+from django.contrib.messages.views import SuccessMessageMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.urls import reverse_lazy
+from django.views.generic import CreateView, UpdateView, DeleteView
 from .forms import SubjectForm, TopicForm
 from .models import Subject, Topic
 import logging
@@ -20,21 +23,16 @@ logger = logging.getLogger(__name__)
 def signup_view(request):
     """
     Handle user signup.
-    GET: Render signup form
-    POST: Process signup form and create user
     """
     if request.user.is_authenticated:
-        # Redirect already logged-in users to dashboard
         return redirect('dashboard')
     
     if request.method == 'POST':
-        # Extract form data
         name = request.POST.get('name', '').strip()
         email = request.POST.get('email', '').strip()
         password = request.POST.get('password', '')
         confirm_password = request.POST.get('confirmPassword', '')
         
-        # Validation
         errors = []
         
         if not name:
@@ -53,29 +51,21 @@ def signup_view(request):
         if password != confirm_password:
             errors.append('Passwords do not match.')
         
-        # Check if username already exists (use email as username)
         if email and User.objects.filter(username=email).exists():
             errors.append('This email is already registered.')
         
         if errors:
-            # Render form with errors
-            context = {
-                'errors': errors,
-                'name': name,
-                'email': email,
-            }
+            context = {'errors': errors, 'name': name, 'email': email}
             return render(request, 'signup.html', context)
         
-        # Create user
         try:
             user = User.objects.create_user(
-                username=email,  # Use email as username
+                username=email,
                 email=email,
-                first_name=name.split()[0] if name else '',  # First word as first name
-                last_name=' '.join(name.split()[1:]) if len(name.split()) > 1 else '',  # Rest as last name
+                first_name=name.split()[0] if name else '',
+                last_name=' '.join(name.split()[1:]) if len(name.split()) > 1 else '',
                 password=password
             )
-            # Authenticate and log the user in immediately
             authenticated_user = authenticate(request, username=email, password=password)
             if authenticated_user is not None:
                 login(request, authenticated_user)
@@ -85,22 +75,14 @@ def signup_view(request):
                 return redirect('login')
         
         except Exception as e:
-            context = {
-                'errors': [f'An error occurred: {str(e)}'],
-                'name': name,
-                'email': email,
-            }
+            context = {'errors': [f'An error occurred: {str(e)}'], 'name': name, 'email': email}
             return render(request, 'signup.html', context)
     
-    # GET request - render empty signup form
     return render(request, 'signup.html')
 
 
 def home_view(request):
-    """
-    Home view - landing page.
-    Redirects authenticated users to dashboard, shows landing page to others.
-    """
+    """Landing page."""
     if request.user.is_authenticated:
         return redirect('dashboard')
     return render(request, 'home.html')
@@ -111,62 +93,135 @@ def dashboard_view(request):
     """Dashboard view - shows user's subjects and topics."""
     subjects = Subject.objects.filter(user=request.user)
     topics = Topic.objects.filter(subject__user=request.user)
-    
-    context = {
-        'subjects': subjects,
-        'topics': topics,
-    }
+    context = {'subjects': subjects, 'topics': topics}
     return render(request, 'dashboard.html', context)
 
 
 class CustomPasswordResetView(PasswordResetView):
-    """Custom password reset view with logging and proper redirect."""
-    
     def form_valid(self, form):
-        """Log when password reset email is sent."""
         email = form.cleaned_data['email']
         logger.info(f"Password reset requested for email: {email}")
         print(f"\n{'='*60}")
         print(f"[PASSWORD RESET] Email requested: {email}")
         print(f"[PASSWORD RESET] Email will be sent from: {form.cleaned_data.get('email')}")
         print(f"[EMAIL BACKEND] Using: smtp.gmail.com")
-        print(f"[EMAIL CONFIG] Emails are being sent via Gmail SMTP")
         print(f"{'='*60}\n")
         return super().form_valid(form)
 
 
-@login_required(login_url='login')
-def add_subject(request):
-    """View to add a new subject."""
-    if request.method == "POST":
-        form = SubjectForm(request.POST)
-        if form.is_valid():
-            subject = form.save(commit=False)
-            subject.user = request.user
-            subject.save()
-            messages.success(request, f"Subject '{subject.name}' added successfully!")
+# ==========================================
+# CLASS-BASED VIEWS FOR CRUD CONSOLIDATION
+# ==========================================
+
+class TitleContextMixin:
+    """Mixin to inject title context into generic template."""
+    page_title = ""
+    page_subtitle = ""
+    submit_btn_text = "Save"
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = self.page_title
+        context['page_subtitle'] = self.page_subtitle
+        context['submit_btn_text'] = self.submit_btn_text
+        return context
+
+
+class SubjectCreateView(LoginRequiredMixin, SuccessMessageMixin, TitleContextMixin, CreateView):
+    model = Subject
+    form_class = SubjectForm
+    template_name = 'form.html'
+    success_url = reverse_lazy('dashboard')
+    success_message = "Subject '%(name)s' added successfully!"
+    page_title = "Add New Subject"
+    page_subtitle = "Create a new subject to organize your studies."
+    submit_btn_text = "Add Subject"
+
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        return super().form_valid(form)
+
+
+class SubjectUpdateView(LoginRequiredMixin, SuccessMessageMixin, TitleContextMixin, UpdateView):
+    model = Subject
+    form_class = SubjectForm
+    template_name = 'form.html'
+    success_url = reverse_lazy('dashboard')
+    success_message = "Subject '%(name)s' updated successfully!"
+    page_title = "Edit Subject"
+    submit_btn_text = "Save Changes"
+
+    def get_queryset(self):
+        return super().get_queryset().filter(user=self.request.user)
+
+
+class SubjectDeleteView(LoginRequiredMixin, SuccessMessageMixin, DeleteView):
+    model = Subject
+    template_name = 'confirm_delete.html'
+    success_url = reverse_lazy('dashboard')
+    success_message = "Subject '%(name)s' deleted successfully!"
+
+    def get_queryset(self):
+        return super().get_queryset().filter(user=self.request.user)
+        
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['object_type'] = 'subject'
+        context['object_name'] = self.object.name
+        return context
+
+
+class TopicCreateView(LoginRequiredMixin, SuccessMessageMixin, TitleContextMixin, CreateView):
+    model = Topic
+    form_class = TopicForm
+    template_name = 'form.html'
+    success_url = reverse_lazy('dashboard')
+    success_message = "Topic '%(name)s' added successfully!"
+    page_title = "Add New Topic"
+    page_subtitle = "Create a new topic and track your confidence level."
+    submit_btn_text = "Add Topic"
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['subject'].queryset = Subject.objects.filter(user=self.request.user)
+        return form
+
+    def form_valid(self, form):
+        if form.instance.subject.user != self.request.user:
+            messages.error(self.request, "Permission denied.")
             return redirect('dashboard')
-    else:
-        form = SubjectForm()
-
-    return render(request, "add_subject.html", {"form": form})
+        return super().form_valid(form)
 
 
-@login_required(login_url='login')
-def add_topic(request):
-    """View to add a new topic."""
-    if request.method == "POST":
-        form = TopicForm(request.POST)
-        if form.is_valid():
-            topic = form.save(commit=False)
-            if topic.subject.user == request.user:
-                topic.save()
-                messages.success(request, f"Topic '{topic.name}' added successfully!")
-                return redirect('dashboard')
-            else:
-                messages.error(request, "You don't have permission to add topics to this subject.")
-    else:
-        form = TopicForm()
-        form.fields['subject'].queryset = Subject.objects.filter(user=request.user)
+class TopicUpdateView(LoginRequiredMixin, SuccessMessageMixin, TitleContextMixin, UpdateView):
+    model = Topic
+    form_class = TopicForm
+    template_name = 'form.html'
+    success_url = reverse_lazy('dashboard')
+    success_message = "Topic '%(name)s' updated successfully!"
+    page_title = "Edit Topic"
+    submit_btn_text = "Save Changes"
 
-    return render(request, "add_topic.html", {"form": form})
+    def get_queryset(self):
+        return super().get_queryset().filter(subject__user=self.request.user)
+        
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['subject'].queryset = Subject.objects.filter(user=self.request.user)
+        return form
+
+
+class TopicDeleteView(LoginRequiredMixin, SuccessMessageMixin, DeleteView):
+    model = Topic
+    template_name = 'confirm_delete.html'
+    success_url = reverse_lazy('dashboard')
+    success_message = "Topic '%(name)s' deleted successfully!"
+
+    def get_queryset(self):
+        return super().get_queryset().filter(subject__user=self.request.user)
+        
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['object_type'] = 'topic'
+        context['object_name'] = self.object.name
+        return context

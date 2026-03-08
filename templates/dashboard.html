@@ -30,9 +30,29 @@
             <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm flex flex-col h-full">
 
                 <div class="mb-4">
-                    <h4 class="text-lg font-semibold text-gray-800">
-                        {{ subject.name }}
-                    </h4>
+                    <div class="flex justify-between items-start">
+                        <h4 class="text-lg font-semibold text-gray-800">
+                            {{ subject.name }}
+                        </h4>
+                        <div class="flex space-x-2">
+                            <a href="{% url 'edit_subject' subject.id %}" class="text-gray-400 hover:text-indigo-600"
+                                title="Edit Subject">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                    </path>
+                                </svg>
+                            </a>
+                            <a href="{% url 'delete_subject' subject.id %}" class="text-gray-400 hover:text-red-600"
+                                title="Delete Subject">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                    </path>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
                     <p class="text-sm text-gray-500 mt-1 line-clamp-2">
                         {{ subject.description|default:"No description available." }}
                     </p>
@@ -46,24 +66,47 @@
                     <ul class="space-y-2">
                         {% for topic in subject.topics.all %}
                         <li
-                            class="flex items-center justify-between text-sm py-1 border-b border-gray-50 last:border-0">
+                            class="flex items-center justify-between text-sm py-1 border-b border-gray-50 last:border-0 hover:bg-gray-50 group">
                             <span class="text-gray-700 truncate mr-2">{{ topic.name }}</span>
 
-                            {% if topic.confidence == "Weak" %}
-                            <span class="px-2 py-0.5 text-[10px] rounded bg-red-100 text-red-600 font-medium shrink-0">
-                                Weak
-                            </span>
-                            {% elif topic.confidence == "Moderate" %}
-                            <span
-                                class="px-2 py-0.5 text-[10px] rounded bg-yellow-100 text-yellow-600 font-medium shrink-0">
-                                Moderate
-                            </span>
-                            {% else %}
-                            <span
-                                class="px-2 py-0.5 text-[10px] rounded bg-green-100 text-green-600 font-medium shrink-0">
-                                Strong
-                            </span>
-                            {% endif %}
+                            <div class="flex items-center space-x-2">
+                                {% if topic.confidence == "Weak" %}
+                                <span
+                                    class="px-2 py-0.5 text-[10px] rounded bg-red-100 text-red-600 font-medium shrink-0">
+                                    Weak
+                                </span>
+                                {% elif topic.confidence == "Moderate" %}
+                                <span
+                                    class="px-2 py-0.5 text-[10px] rounded bg-yellow-100 text-yellow-600 font-medium shrink-0">
+                                    Moderate
+                                </span>
+                                {% else %}
+                                <span
+                                    class="px-2 py-0.5 text-[10px] rounded bg-green-100 text-green-600 font-medium shrink-0">
+                                    Strong
+                                </span>
+                                {% endif %}
+
+                                <!-- Edit/Delete Topic Actions -->
+                                <div class="hidden group-hover:flex space-x-1 ml-2">
+                                    <a href="{% url 'edit_topic' topic.id %}"
+                                        class="text-gray-400 hover:text-indigo-600" title="Edit Topic">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z">
+                                            </path>
+                                        </svg>
+                                    </a>
+                                    <a href="{% url 'delete_topic' topic.id %}" class="text-gray-400 hover:text-red-600"
+                                        title="Delete Topic">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                            </path>
+                                        </svg>
+                                    </a>
+                                </div>
+                            </div>
                         </li>
                         {% endfor %}
                     </ul>
