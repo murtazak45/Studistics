@@ -45,3 +45,44 @@ class Topic(models.Model):
     def confidence(self):
         """Alias for confidence_level for template compatibility."""
         return self.confidence_level
+
+
+class StudySession(models.Model):
+    """Stores analytics data for study tracking."""
+    CONFIDENCE_CHOICES = [
+        (1, 'Very Low'),
+        (2, 'Low'),
+        (3, 'Medium'),
+        (4, 'High'),
+        (5, 'Very High'),
+    ]
+
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='sessions')
+    study_time = models.IntegerField(help_text='Minutes studied')
+    confidence_level = models.IntegerField(choices=CONFIDENCE_CHOICES)
+    marks_scored = models.FloatField(null=True, blank=True)
+    revision_count = models.IntegerField(default=0)
+    date = models.DateField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.topic.name} - {self.date}"
+
+
+class Exam(models.Model):
+    """Stores upcoming exams."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='exams')
+    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='exams')
+    exam_name = models.CharField(max_length=200)
+    exam_date = models.DateField()
+
+    def __str__(self):
+        return f"{self.exam_name} - {self.subject.name}"
+
+
+class RevisionLog(models.Model):
+    """Tracks topic revision history."""
+    topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='revisions')
+    revision_date = models.DateField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.topic.name} - {self.revision_date}"

@@ -62,6 +62,17 @@
                         </a>
                     </li>
 
+                    <li>
+                        <a href="{% url 'log_study_session' %}" class="flex items-center px-4 py-3 rounded-lg transition
+                       {% if request.path == '/study-session/log/' %}
+                           bg-indigo-50 text-indigo-600 font-medium
+                       {% else %}
+                           text-gray-600 hover:bg-gray-100
+                       {% endif %}">
+                            Log Study Session
+                        </a>
+                    </li>
+
                 </ul>
             </nav>
 

@@ -12,8 +12,8 @@ from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, UpdateView, DeleteView
-from .forms import SubjectForm, TopicForm
-from .models import Subject, Topic
+from .forms import SubjectForm, TopicForm, StudySessionForm
+from .models import Subject, Topic, StudySession
 import logging
 
 logger = logging.getLogger(__name__)
@@ -225,3 +225,23 @@ class TopicDeleteView(LoginRequiredMixin, SuccessMessageMixin, DeleteView):
         context['object_type'] = 'topic'
         context['object_name'] = self.object.name
         return context
+
+
+# ==========================================
+# STUDY SESSION VIEWS
+# ==========================================
+
+class StudySessionCreateView(LoginRequiredMixin, SuccessMessageMixin, TitleContextMixin, CreateView):
+    model = StudySession
+    form_class = StudySessionForm
+    template_name = 'form.html'
+    success_url = reverse_lazy('dashboard')
+    success_message = "Study session logged successfully!"
+    page_title = "Log Study Session"
+    page_subtitle = "Record your study session to track progress and analytics."
+    submit_btn_text = "Log Session"
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['topic'].queryset = Topic.objects.filter(subject__user=self.request.user)
+        return form
