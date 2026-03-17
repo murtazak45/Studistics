@@ -14,6 +14,7 @@ urlpatterns = [
     path('edit-topic/<int:pk>/', views.TopicUpdateView.as_view(), name='edit_topic'),
     path('delete-topic/<int:pk>/', views.TopicDeleteView.as_view(), name='delete_topic'),
     path('study-session/log/', views.StudySessionCreateView.as_view(), name='log_study_session'),
+    path('exams/add/', views.ExamCreateView.as_view(), name='add_exam'),
     path('admin/', admin.site.urls),
     path('', include('studistics.auth_urls')),
 ]

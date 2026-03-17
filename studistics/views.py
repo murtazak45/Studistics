@@ -12,8 +12,11 @@ from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, UpdateView, DeleteView
-from .forms import SubjectForm, TopicForm, StudySessionForm
-from .models import Subject, Topic, StudySession
+from .forms import SubjectForm, TopicForm, StudySessionForm, ExamForm
+from .models import Subject, Topic, StudySession, Exam, RevisionLog
+from studistics.utils.analysis import analyze_user_topics
+from studistics.services.study_planner import generate_daily_plan
+from datetime import date, timedelta
 import logging
 
 logger = logging.getLogger(__name__)
@@ -90,10 +93,43 @@ def home_view(request):
 
 @login_required(login_url='login')
 def dashboard_view(request):
-    """Dashboard view - shows user's subjects and topics."""
+    """Dashboard view - shows user's subjects, topics, and analytics."""
     subjects = Subject.objects.filter(user=request.user)
     topics = Topic.objects.filter(subject__user=request.user)
-    context = {'subjects': subjects, 'topics': topics}
+
+    # --- Topic Strength Analytics ---
+    analysis = analyze_user_topics(request.user)
+
+    # --- Upcoming Exams (future dates only) ---
+    upcoming_exams = Exam.objects.filter(
+        user=request.user,
+        exam_date__gte=date.today(),
+    ).order_by('exam_date')
+
+    # --- Revision Reminders (not revised in last 3 days) ---
+    three_days_ago = date.today() - timedelta(days=3)
+    revision_reminders = []
+    for topic in topics:
+        latest_revision = topic.revisions.order_by('-revision_date').first()
+        if latest_revision is None or latest_revision.revision_date < three_days_ago:
+            revision_reminders.append(topic)
+
+    # --- Daily Study Plan ---
+    daily_plan = generate_daily_plan(request.user)
+
+    context = {
+        'subjects': subjects,
+        'topics': topics,
+        'weak_count': len(analysis['weak_topics']),
+        'moderate_count': len(analysis['moderate_topics']),
+        'strong_count': len(analysis['strong_topics']),
+        'weak_topics': analysis['weak_topics'],
+        'moderate_topics': analysis['moderate_topics'],
+        'strong_topics': analysis['strong_topics'],
+        'upcoming_exams': upcoming_exams,
+        'revision_reminders': revision_reminders,
+        'daily_plan': daily_plan,
+    }
     return render(request, 'dashboard.html', context)
 
 
@@ -245,3 +281,27 @@ class StudySessionCreateView(LoginRequiredMixin, SuccessMessageMixin, TitleConte
         form = super().get_form(form_class)
         form.fields['topic'].queryset = Topic.objects.filter(subject__user=self.request.user)
         return form
+
+
+# ==========================================
+# EXAM VIEWS
+# ==========================================
+
+class ExamCreateView(LoginRequiredMixin, SuccessMessageMixin, TitleContextMixin, CreateView):
+    model = Exam
+    form_class = ExamForm
+    template_name = 'form.html'
+    success_url = reverse_lazy('dashboard')
+    success_message = "Exam '%(exam_name)s' added successfully!"
+    page_title = "Add Exam"
+    page_subtitle = "Schedule an upcoming exam to help prioritise your study plan."
+    submit_btn_text = "Add Exam"
+
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        form.fields['subject'].queryset = Subject.objects.filter(user=self.request.user)
+        return form
+
+    def form_valid(self, form):
+        form.instance.user = self.request.user
+        return super().form_valid(form)

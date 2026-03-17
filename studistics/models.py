@@ -60,7 +60,10 @@ class StudySession(models.Model):
     topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name='sessions')
     study_time = models.IntegerField(help_text='Minutes studied')
     confidence_level = models.IntegerField(choices=CONFIDENCE_CHOICES)
-    marks_scored = models.FloatField(null=True, blank=True)
+    practice_score = models.FloatField(
+        null=True, blank=True,
+        help_text='Score from practice test or self-assessment (e.g. 7 out of 10, enter 7)',
+    )
     revision_count = models.IntegerField(default=0)
     date = models.DateField(auto_now_add=True)
 
