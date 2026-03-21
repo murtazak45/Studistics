@@ -42,7 +42,7 @@
                 <h4 class="text-sm font-semibold text-yellow-600 uppercase tracking-wider">Moderate</h4>
                 <span class="text-3xl font-bold text-yellow-600">{{ moderate_count }}</span>
             </div>
-            <p class="text-xs text-gray-500">Topics scoring 40–69</p>
+            <p class="text-xs text-gray-500">Topics scoring 40-69</p>
             {% if moderate_topics %}
             <ul class="mt-3 space-y-1">
                 {% for entry in moderate_topics %}
@@ -74,6 +74,48 @@
             {% endif %}
         </div>
 
+    </div>
+
+    <!-- STUDY ANALYTICS CHARTS -->
+    <div class="mb-10">
+        <h3 class="text-xl font-semibold text-gray-700 mb-4">Study Analytics</h3>
+
+        {% if study_time_values == "[]" and strength_values == "[0, 0, 0]" %}
+        <div class="bg-white border border-gray-200 rounded-xl p-8 text-center">
+            <p class="text-gray-500 italic">No data available yet. Log some study sessions to see your analytics charts.</p>
+        </div>
+        {% else %}
+
+        <!-- All 3 charts in a compact responsive grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+            <!-- Study Time Trend (Line Chart) -->
+            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <h4 class="text-xs font-semibold text-blue-600 uppercase tracking-wider mb-3">Study Time (Last 7 Days)</h4>
+                <div style="position:relative; height:200px; width:100%;">
+                    <canvas id="studyTimeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Confidence Level Trend (Bar Chart) -->
+            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <h4 class="text-xs font-semibold text-teal-600 uppercase tracking-wider mb-3">Confidence Trend (Last 7 Days)</h4>
+                <div style="position:relative; height:200px; width:100%;">
+                    <canvas id="confidenceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Topic Strength (Pie Chart) -->
+            <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                <h4 class="text-xs font-semibold text-purple-600 uppercase tracking-wider mb-3">Topic Strength Distribution</h4>
+                <div style="position:relative; height:200px; width:100%;">
+                    <canvas id="strengthChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        {% endif %}
     </div>
 
     <!-- TODAY'S STUDY PLAN -->
@@ -272,5 +314,127 @@
     </div>
 
 </div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+
+    var studyLabels = {{ study_time_labels|safe }};
+    var studyData = {{ study_time_values|safe }};
+    var confLabels = {{ confidence_labels|safe }};
+    var confData = {{ confidence_values|safe }};
+    var strLabels = {{ strength_labels|safe }};
+    var strData = {{ strength_values|safe }};
+
+    // 1. Study Time Trend (Line Chart)
+    var studyCtx = document.getElementById('studyTimeChart');
+    if (studyCtx) {
+        new Chart(studyCtx, {
+            type: 'line',
+            data: {
+                labels: studyLabels,
+                datasets: [{
+                    label: 'Minutes',
+                    data: studyData,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    borderWidth: 2,
+                    tension: 0.35,
+                    fill: true,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#3b82f6',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: '#9ca3af', font: { size: 10 } },
+                        grid: { color: '#f3f4f6' },
+                    },
+                    x: {
+                        ticks: { color: '#9ca3af', font: { size: 9 } },
+                        grid: { display: false },
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Confidence Level Trend (Bar Chart)
+    var confCtx = document.getElementById('confidenceChart');
+    if (confCtx) {
+        new Chart(confCtx, {
+            type: 'bar',
+            data: {
+                labels: confLabels,
+                datasets: [{
+                    label: 'Confidence',
+                    data: confData,
+                    backgroundColor: 'rgba(20, 184, 166, 0.6)',
+                    borderColor: '#14b8a6',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    barPercentage: 0.6,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 5,
+                        ticks: { stepSize: 1, color: '#9ca3af', font: { size: 10 } },
+                        grid: { color: '#f3f4f6' },
+                    },
+                    x: {
+                        ticks: { color: '#9ca3af', font: { size: 9 } },
+                        grid: { display: false },
+                    }
+                }
+            }
+        });
+    }
+
+    // 3. Topic Strength Distribution (Pie Chart)
+    var strCtx = document.getElementById('strengthChart');
+    if (strCtx && strData.some(function(v){ return v > 0; })) {
+        new Chart(strCtx, {
+            type: 'pie',
+            data: {
+                labels: strLabels,
+                datasets: [{
+                    data: strData,
+                    backgroundColor: [
+                        'rgba(239, 68, 68, 0.75)',
+                        'rgba(234, 179, 8, 0.75)',
+                        'rgba(34, 197, 94, 0.75)',
+                    ],
+                    borderColor: ['#ef4444', '#eab308', '#22c55e'],
+                    borderWidth: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#374151', font: { size: 11 }, padding: 12 },
+                    },
+                },
+            }
+        });
+    }
+
+});
+</script>
 
 {% endblock %}

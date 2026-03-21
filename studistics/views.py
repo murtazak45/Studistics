@@ -16,7 +16,13 @@ from .forms import SubjectForm, TopicForm, StudySessionForm, ExamForm
 from .models import Subject, Topic, StudySession, Exam, RevisionLog
 from studistics.utils.analysis import analyze_user_topics
 from studistics.services.study_planner import generate_daily_plan
+from studistics.services.analytics_service import (
+    get_study_time_trend,
+    get_confidence_trend,
+    get_topic_strength_distribution,
+)
 from datetime import date, timedelta
+import json
 import logging
 
 logger = logging.getLogger(__name__)
@@ -117,6 +123,11 @@ def dashboard_view(request):
     # --- Daily Study Plan ---
     daily_plan = generate_daily_plan(request.user)
 
+    # --- Chart Data ---
+    study_time_data = get_study_time_trend(request.user)
+    confidence_data = get_confidence_trend(request.user)
+    strength_data = get_topic_strength_distribution(request.user)
+
     context = {
         'subjects': subjects,
         'topics': topics,
@@ -129,6 +140,13 @@ def dashboard_view(request):
         'upcoming_exams': upcoming_exams,
         'revision_reminders': revision_reminders,
         'daily_plan': daily_plan,
+        # Chart data (JSON-encoded for JS consumption)
+        'study_time_labels': json.dumps(study_time_data['labels']),
+        'study_time_values': json.dumps(study_time_data['values']),
+        'confidence_labels': json.dumps(confidence_data['labels']),
+        'confidence_values': json.dumps(confidence_data['values']),
+        'strength_labels': json.dumps(strength_data['labels']),
+        'strength_values': json.dumps(strength_data['values']),
     }
     return render(request, 'dashboard.html', context)
 

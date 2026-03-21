@@ -2,10 +2,16 @@
 Management command to generate demo data for project demonstrations and testing.
 
 Usage:
-    python manage.py generate_demo_data
+    python manage.py generate_demo_data           # additive (safe to re-run)
+    python manage.py generate_demo_data --clear    # wipe demo user data first
 
 Creates a demo user with realistic academic data including subjects, topics,
 study sessions (with varied strength profiles), exams, and revision logs.
+
+The generated data produces meaningful analytics output that is compatible
+with the dashboard, weakness detection, and study planner features.
+
+Requires: pip install faker
 """
 import random
 from datetime import date, timedelta
@@ -18,14 +24,14 @@ from studistics.models import Subject, Topic, StudySession, Exam, RevisionLog
 
 fake = Faker()
 
-# ──────────────────────────────────────────────
+# --------------------------------------------------
 # Structured Academic Dataset
-# ──────────────────────────────────────────────
+# --------------------------------------------------
 # Each subject maps to a list of (topic_name, strength_profile) tuples.
 # strength_profile controls the analytics outcome:
-#   "weak"     → low confidence, low score, short study time
-#   "moderate" → mid confidence, mid score, medium study time
-#   "strong"   → high confidence, high score, long study time, more revisions
+#   "weak"     -> low confidence, low score, short study time
+#   "moderate" -> mid confidence, mid score, medium study time
+#   "strong"   -> high confidence, high score, long study time, more revisions
 
 CURRICULUM = {
     'Mathematics': {
@@ -78,36 +84,50 @@ CURRICULUM = {
     },
 }
 
+# --------------------------------------------------
 # Study session profiles per strength level
+# --------------------------------------------------
+# Tuned to produce reliable analytics scores using the formula:
+#   score = (avg_confidence * 20) + (avg_practice_score * 10)
+#         + (total_revisions * 5) + (total_study_time * 0.1)
+#
+# Target score bands:
+#   weak     -> score < 40
+#   moderate -> 40 <= score < 70
+#   strong   -> score >= 70
+
 SESSION_PROFILES = {
     'weak': {
-        'session_count': (1, 2),
-        'study_time': (15, 30),
-        'confidence': (1, 2),
-        'practice_score': (1.0, 3.5),
-        'revision_count': (0, 0),
+        'session_count': (5, 8),        # 5-8 sessions
+        'study_time': (15, 30),         # short study time
+        'confidence': (1, 2),           # very low / low
+        'practice_score': (1.0, 3.0),   # low score
+        'revision_count': (0, 0),       # no revisions
     },
     'moderate': {
-        'session_count': (2, 4),
-        'study_time': (30, 55),
-        'confidence': (2, 4),
-        'practice_score': (4.0, 6.5),
-        'revision_count': (0, 2),
+        'session_count': (7, 12),       # 7-12 sessions
+        'study_time': (30, 60),         # medium study time
+        'confidence': (2, 4),           # low - high
+        'practice_score': (4.0, 6.5),   # mid score
+        'revision_count': (0, 2),       # some revisions
     },
     'strong': {
-        'session_count': (3, 6),
-        'study_time': (45, 90),
-        'confidence': (4, 5),
-        'practice_score': (7.0, 10.0),
-        'revision_count': (1, 3),
+        'session_count': (10, 15),      # 10-15 sessions
+        'study_time': (60, 120),        # long study time
+        'confidence': (4, 5),           # high / very high
+        'practice_score': (7.0, 10.0),  # high score
+        'revision_count': (1, 3),       # frequent revisions
     },
 }
 
+# --------------------------------------------------
 # Exam definitions
+# --------------------------------------------------
+# (subject_name, exam_name, (min_days_ahead, max_days_ahead))
 EXAMS = [
-    ('Database Systems', 'Database Systems Midterm', (10, 25)),
-    ('Machine Learning', 'Machine Learning Quiz', (5, 15)),
-    ('Mathematics', 'Mathematics Final', (30, 55)),
+    ('Database Systems', 'DBMS Midterm', (10, 25)),
+    ('Machine Learning', 'ML Quiz', (5, 15)),
+    ('Mathematics', 'Math Final', (30, 55)),
     ('Physics', 'Physics Lab Exam', (15, 35)),
     ('Computer Networks', 'Networks Practical', (20, 45)),
 ]
@@ -116,26 +136,69 @@ EXAMS = [
 class Command(BaseCommand):
     help = 'Generate realistic demo data for project demonstrations and testing.'
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--clear',
+            action='store_true',
+            help='Delete ALL existing demo-user data before regenerating (full reset).',
+        )
+
     def handle(self, *args, **options):
-        self.stdout.write(self.style.MIGRATE_HEADING('\n═══ Studistics Demo Data Generator ═══\n'))
+        self.stdout.write(self.style.MIGRATE_HEADING(
+            '\n=== Studistics Demo Data Generator ===\n'
+        ))
 
         user = self._create_demo_user()
+
+        if options['clear']:
+            self._clear_demo_data(user)
+
         subjects = self._create_subjects(user)
         topics, topic_count = self._create_topics(subjects)
         session_count = self._create_study_sessions(topics)
         revision_count = self._create_revision_logs(topics)
         exam_count = self._create_exams(user, subjects)
 
-        # Summary
-        self.stdout.write(self.style.MIGRATE_HEADING('\n── Summary ──'))
+        # -- Summary --
+        self.stdout.write(self.style.MIGRATE_HEADING('\n-- Summary --'))
         self.stdout.write(f'  Subjects created : {len(subjects)}')
         self.stdout.write(f'  Topics created   : {topic_count}')
         self.stdout.write(f'  Study sessions   : {session_count}')
         self.stdout.write(f'  Revision logs    : {revision_count}')
         self.stdout.write(f'  Exams created    : {exam_count}')
-        self.stdout.write(self.style.SUCCESS('\n✓ Demo dataset created successfully.\n'))
+        self.stdout.write(self.style.SUCCESS(
+            '\n[OK] Demo Data Created Successfully\n'
+        ))
 
-    # ── Demo User ───────────────────────────
+    # -- Clear ------------------------------------
+    def _clear_demo_data(self, user):
+        """Delete all data owned by the demo user for a clean slate."""
+        subjects = Subject.objects.filter(user=user)
+        # Cascading deletes handle Topics -> StudySessions / RevisionLogs
+        session_count = StudySession.objects.filter(
+            topic__subject__user=user
+        ).count()
+        revision_count = RevisionLog.objects.filter(
+            topic__subject__user=user
+        ).count()
+        exam_count = Exam.objects.filter(user=user).count()
+        topic_count = Topic.objects.filter(subject__user=user).count()
+        subject_count = subjects.count()
+
+        # Delete in order (children first avoids integrity issues on some DBs)
+        RevisionLog.objects.filter(topic__subject__user=user).delete()
+        StudySession.objects.filter(topic__subject__user=user).delete()
+        Exam.objects.filter(user=user).delete()
+        Topic.objects.filter(subject__user=user).delete()
+        subjects.delete()
+
+        self.stdout.write(self.style.WARNING(
+            f'  [!] Cleared: {subject_count} subjects, {topic_count} topics, '
+            f'{session_count} sessions, {revision_count} revisions, '
+            f'{exam_count} exams'
+        ))
+
+    # -- Demo User ---------------------------------
     def _create_demo_user(self):
         user, created = User.objects.get_or_create(
             username='demo_student',
@@ -148,12 +211,14 @@ class Command(BaseCommand):
         if created:
             user.set_password('demo1234')
             user.save()
-            self.stdout.write(self.style.SUCCESS('  ✓ Demo user created (demo_student / demo1234)'))
+            self.stdout.write(self.style.SUCCESS(
+                '  [+] Demo user created (demo_student / demo1234)'
+            ))
         else:
-            self.stdout.write('  • Demo user already exists — skipping')
+            self.stdout.write('  [=] Demo user already exists -- reusing')
         return user
 
-    # ── Subjects ────────────────────────────
+    # -- Subjects ----------------------------------
     def _create_subjects(self, user):
         subjects = {}
         for name, data in CURRICULUM.items():
@@ -164,10 +229,11 @@ class Command(BaseCommand):
             )
             subjects[name] = subject
             status = 'created' if created else 'exists'
-            self.stdout.write(f'  {"✓" if created else "•"} Subject: {name} ({status})')
+            tag = '[+]' if created else '[=]'
+            self.stdout.write(f'  {tag} Subject: {name} ({status})')
         return subjects
 
-    # ── Topics ──────────────────────────────
+    # -- Topics ------------------------------------
     def _create_topics(self, subjects):
         topics = []
         count = 0
@@ -183,60 +249,73 @@ class Command(BaseCommand):
                             'moderate': 'Moderate',
                             'strong': 'Strong',
                         }[strength],
-                        'last_studied_date': date.today() - timedelta(days=random.randint(0, 14)),
+                        'last_studied_date': date.today() - timedelta(
+                            days=random.randint(0, 14)
+                        ),
                     },
                 )
                 if created:
                     count += 1
                 topics.append((topic, strength))
-        self.stdout.write(f'  ✓ Topics processed: {len(topics)} ({count} new)')
+        self.stdout.write(f'  [+] Topics processed: {len(topics)} ({count} new)')
         return topics, count
 
-    # ── Study Sessions ──────────────────────
+    # -- Study Sessions -----------------------------
     def _create_study_sessions(self, topics):
         total = 0
         for topic, strength in topics:
             profile = SESSION_PROFILES[strength]
             num_sessions = random.randint(*profile['session_count'])
 
-            for i in range(num_sessions):
+            for _ in range(num_sessions):
                 session = StudySession.objects.create(
                     topic=topic,
                     study_time=random.randint(*profile['study_time']),
                     confidence_level=random.randint(*profile['confidence']),
-                    practice_score=round(random.uniform(*profile['practice_score']), 1),
+                    practice_score=round(
+                        random.uniform(*profile['practice_score']), 1
+                    ),
                     revision_count=random.randint(*profile['revision_count']),
                 )
-                # Backdate the auto_now_add date to spread sessions over the last 30 days
-                past_date = date.today() - timedelta(days=random.randint(0, 30))
-                StudySession.objects.filter(pk=session.pk).update(date=past_date)
+                # Backdate the auto_now_add date to spread sessions
+                # over the last 30 days
+                past_date = date.today() - timedelta(
+                    days=random.randint(0, 30)
+                )
+                StudySession.objects.filter(pk=session.pk).update(
+                    date=past_date
+                )
                 total += 1
 
-        self.stdout.write(f'  ✓ Study sessions created: {total}')
+        self.stdout.write(f'  [+] Study sessions created: {total}')
         return total
 
-    # ── Revision Logs ───────────────────────
+    # -- Revision Logs -----------------------------
     def _create_revision_logs(self, topics):
         total = 0
         for topic, strength in topics:
-            # Strong topics get recent revisions, weak topics may have none
+            # Strong topics get recent revisions, weak topics have none
             if strength == 'strong':
                 num_revisions = random.randint(1, 3)
             elif strength == 'moderate':
                 num_revisions = random.choice([0, 0, 1])
             else:
-                num_revisions = 0  # Weak topics: no revisions (triggers reminders)
+                num_revisions = 0  # Weak topics: no revisions -> triggers reminders
 
             for _ in range(num_revisions):
                 log = RevisionLog.objects.create(topic=topic)
-                past_date = date.today() - timedelta(days=random.randint(0, 7))
-                RevisionLog.objects.filter(pk=log.pk).update(revision_date=past_date)
+                past_date = date.today() - timedelta(
+                    days=random.randint(0, 7)
+                )
+                RevisionLog.objects.filter(pk=log.pk).update(
+                    revision_date=past_date
+                )
                 total += 1
 
-        self.stdout.write(f'  ✓ Revision logs created: {total}')
+        self.stdout.write(f'  [+] Revision logs created: {total}')
         return total
 
-    # ── Exams ───────────────────────────────
+    # -- Exams -------------------------------------
     def _create_exams(self, user, subjects):
         total = 0
         for subject_name, exam_name, day_range in EXAMS:
@@ -247,11 +326,14 @@ class Command(BaseCommand):
                 subject=subjects[subject_name],
                 exam_name=exam_name,
                 defaults={
-                    'exam_date': date.today() + timedelta(days=random.randint(*day_range)),
+                    'exam_date': date.today() + timedelta(
+                        days=random.randint(*day_range)
+                    ),
                 },
             )
             if created:
                 total += 1
             status = 'created' if created else 'exists'
-            self.stdout.write(f'  {"✓" if created else "•"} Exam: {exam_name} ({status})')
+            tag = '[+]' if created else '[=]'
+            self.stdout.write(f'  {tag} Exam: {exam_name} ({status})')
         return total
