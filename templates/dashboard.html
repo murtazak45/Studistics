@@ -133,9 +133,10 @@
                     {% else %}
                     <span class="px-2 py-0.5 text-[10px] rounded bg-blue-100 text-blue-600 font-medium mr-3 shrink-0">Revise</span>
                     {% endif %}
-                    <span class="truncate mr-2">{{ task.topic }}</span>
-                    <span class="text-xs text-gray-400 mr-2 shrink-0">{{ task.subject }}</span>
-                    <span class="ml-auto text-xs text-gray-500 font-medium shrink-0">{{ task.duration_minutes }} min</span>
+                    <div class="ml-2 flex flex-col items-start min-w-0">
+                        <span class="text-sm font-semibold text-gray-800 truncate">{{ task.topic }} <span class="text-xs font-normal text-gray-500">({{ task.subject }})</span></span>
+                    </div>
+                    <span class="ml-auto text-xs text-gray-500 font-medium shrink-0">{{ task.duration_hours }} hr</span>
                     {% if task.priority == "high" %}
                     <span class="ml-2 px-1.5 py-0.5 text-[9px] rounded bg-orange-100 text-orange-600 font-bold shrink-0">EXAM SOON</span>
                     {% endif %}
@@ -336,7 +337,7 @@ document.addEventListener('DOMContentLoaded', function () {
             data: {
                 labels: studyLabels,
                 datasets: [{
-                    label: 'Minutes',
+                    label: 'Hours',
                     data: studyData,
                     borderColor: '#3b82f6',
                     backgroundColor: 'rgba(59, 130, 246, 0.15)',

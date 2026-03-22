@@ -4,6 +4,7 @@ Views for studistics app.
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.db.models import Max
 from django.contrib import messages
 from django.contrib.auth import authenticate, login
 from django.views.decorators.http import require_http_methods
@@ -100,8 +101,11 @@ def home_view(request):
 @login_required(login_url='login')
 def dashboard_view(request):
     """Dashboard view - shows user's subjects, topics, and analytics."""
-    subjects = Subject.objects.filter(user=request.user)
-    topics = Topic.objects.filter(subject__user=request.user)
+    subjects = Subject.objects.filter(user=request.user).prefetch_related('topics')
+    # Optimize query with select_related and Max annotation
+    topics = Topic.objects.filter(subject__user=request.user).select_related('subject').annotate(
+        latest_revision_date=Max('revisions__revision_date')
+    )
 
     # --- Topic Strength Analytics ---
     analysis = analyze_user_topics(request.user)
@@ -110,14 +114,13 @@ def dashboard_view(request):
     upcoming_exams = Exam.objects.filter(
         user=request.user,
         exam_date__gte=date.today(),
-    ).order_by('exam_date')
+    ).select_related('subject').order_by('exam_date')
 
     # --- Revision Reminders (not revised in last 3 days) ---
     three_days_ago = date.today() - timedelta(days=3)
     revision_reminders = []
     for topic in topics:
-        latest_revision = topic.revisions.order_by('-revision_date').first()
-        if latest_revision is None or latest_revision.revision_date < three_days_ago:
+        if topic.latest_revision_date is None or topic.latest_revision_date < three_days_ago:
             revision_reminders.append(topic)
 
     # --- Daily Study Plan ---
@@ -155,11 +158,6 @@ class CustomPasswordResetView(PasswordResetView):
     def form_valid(self, form):
         email = form.cleaned_data['email']
         logger.info(f"Password reset requested for email: {email}")
-        print(f"\n{'='*60}")
-        print(f"[PASSWORD RESET] Email requested: {email}")
-        print(f"[PASSWORD RESET] Email will be sent from: {form.cleaned_data.get('email')}")
-        print(f"[EMAIL BACKEND] Using: smtp.gmail.com")
-        print(f"{'='*60}\n")
         return super().form_valid(form)
 
 

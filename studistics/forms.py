@@ -32,20 +32,21 @@ class StudySessionForm(forms.ModelForm):
             'practice_score',
             'revision_count',
         ]
-        labels = {
-            'study_time': 'Study Time (minutes)',
-            'confidence_level': 'How confident do you feel?',
-            'practice_score': 'Practice Score',
-            'revision_count': 'Revision Count',
+        widgets = {
+            'study_time': forms.NumberInput(attrs={'step': '0.1', 'min': '0'}),
+            'practice_score': forms.NumberInput(attrs={'step': '0.1', 'min': '0', 'max': '100'}),
         }
-        help_texts = {
-            'practice_score': 'Score from a practice test or self-assessment (e.g. 7 out of 10, enter 7).',
+        labels = {
+            'study_time': 'Study Time (hours)',
+            'confidence_level': 'How confident do you feel?',
+            'practice_score': 'Expected score out of 100 (if tested right now)',
+            'revision_count': 'Number of times you revised this topic today',
         }
 
     def clean_study_time(self):
         study_time = self.cleaned_data.get('study_time')
         if study_time is not None and study_time <= 0:
-            raise ValidationError('Study time must be a positive number.')
+            raise ValidationError('Study time must be greater than zero.')
         return study_time
 
     def clean_revision_count(self):
@@ -66,3 +67,10 @@ class ExamForm(forms.ModelForm):
             'exam_name': 'Exam Name',
             'exam_date': 'Exam Date',
         }
+
+    def clean_exam_date(self):
+        from datetime import date
+        exam_date = self.cleaned_data.get('exam_date')
+        if exam_date and exam_date < date.today():
+            raise ValidationError('Exam date cannot be in the past.')
+        return exam_date

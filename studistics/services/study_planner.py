@@ -8,16 +8,15 @@ from datetime import date
 
 def generate_daily_plan(user):
     """
-    Generate a prioritised daily study plan for the user.
+    Generate a prioritised daily study plan for the user, capped at 6 hours.
 
     Logic:
-    1. Weak topics get "study" tasks (40 min each) — highest priority
-    2. Moderate topics get "revision" tasks (20 min each)
-    3. Topics linked to upcoming exams (next 7 days) get a "priority" boost
-
-    Returns a list of task dicts:
-        [{"topic": "...", "task_type": "study"|"revision", "duration_minutes": int}, ...]
+    1. Weak topics get "study" tasks (1 hr each)
+    2. Moderate topics get "revision" tasks (0.5 hr each)
+    3. Exams in the next 7 days give a massive priority boost
+    4. Capped at 6 hours daily to prevent student burnout
     """
+    from datetime import timedelta
     analysis = analyze_user_topics(user)
 
     # Subjects with exams in the next 7 days
@@ -25,38 +24,59 @@ def generate_daily_plan(user):
         Exam.objects.filter(
             user=user,
             exam_date__gte=date.today(),
-            exam_date__lte=date.today(),
+            exam_date__lte=date.today() + timedelta(days=7),
         )
         .values_list('subject_id', flat=True)
     )
 
-    plan = []
+    all_tasks = []
 
-    # --- Weak topics: study tasks (40 min) ---
+    # --- Weak topics: study tasks (1 hr) ---
     for entry in analysis['weak_topics']:
         topic = entry['topic']
         is_exam_soon = topic.subject_id in upcoming_exam_subjects
-        plan.append({
+        all_tasks.append({
             'topic': topic.name,
             'subject': topic.subject.name,
             'task_type': 'study',
-            'duration_minutes': 40,
+            'duration_hours': 1.0,
             'priority': 'high' if is_exam_soon else 'normal',
         })
 
-    # --- Moderate topics: revision tasks (20 min) ---
+    # --- Moderate topics: revision tasks (0.5 hr) ---
     for entry in analysis['moderate_topics']:
         topic = entry['topic']
         is_exam_soon = topic.subject_id in upcoming_exam_subjects
-        plan.append({
+        all_tasks.append({
             'topic': topic.name,
             'subject': topic.subject.name,
             'task_type': 'revision',
-            'duration_minutes': 20,
+            'duration_hours': 0.5,
             'priority': 'high' if is_exam_soon else 'normal',
         })
 
-    # Sort: high-priority items first
-    plan.sort(key=lambda x: 0 if x['priority'] == 'high' else 1)
+    # Sort logic: High priority first, then study tasks over revision tasks
+    def task_sort_key(task):
+        score = 0
+        if task['priority'] == 'high':
+            score += 10
+        if task['task_type'] == 'study':
+            score += 5
+        return -score
+
+    all_tasks.sort(key=task_sort_key)
+
+    # --- Cap Plan to prevent Burnout (Max 6 hours) ---
+    MAX_DAILY_HOURS = 6.0
+    current_hours = 0.0
+    plan = []
+
+    for task in all_tasks:
+        if current_hours + task['duration_hours'] <= MAX_DAILY_HOURS:
+            plan.append(task)
+            current_hours += task['duration_hours']
+        
+        if current_hours >= MAX_DAILY_HOURS:
+            break
 
     return plan

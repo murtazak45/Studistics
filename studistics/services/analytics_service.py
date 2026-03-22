@@ -30,7 +30,7 @@ def get_study_time_trend(user):
 
     # Build a complete 7-day range so the chart always has 7 points
     date_range = pd.date_range(end=date.today(), periods=7, freq='D')
-    result = pd.Series(0, index=date_range, dtype=int)
+    result = pd.Series(0.0, index=date_range, dtype=float)
 
     if qs.exists():
         df = pd.DataFrame(list(qs))
@@ -38,7 +38,7 @@ def get_study_time_trend(user):
         grouped = df.groupby('date')['study_time'].sum()
         for d, val in grouped.items():
             if d in result.index:
-                result[d] = int(val)
+                result[d] = round(float(val), 1)
 
     return {
         "labels": [d.strftime('%b %d') for d in result.index],
