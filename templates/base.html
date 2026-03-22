@@ -10,10 +10,10 @@
 
 <body class="bg-gray-50 text-gray-800">
 
-    <div class="flex min-h-screen">
+    <div class="flex h-screen overflow-hidden">
 
         <!-- SIDEBAR -->
-        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+        <aside class="w-64 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col overflow-y-auto">
 
             <!-- Logo Section -->
             <div class="p-6 border-b border-gray-200">
@@ -101,7 +101,7 @@
         </aside>
 
         <!-- MAIN CONTENT -->
-        <main class="flex-1 p-10">
+        <main class="flex-1 p-10 overflow-y-auto">
 
             {% block content %}
             {% endblock %}

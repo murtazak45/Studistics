@@ -104,7 +104,7 @@ def dashboard_view(request):
     subjects = Subject.objects.filter(user=request.user).prefetch_related('topics')
     # Optimize query with select_related and Max annotation
     topics = Topic.objects.filter(subject__user=request.user).select_related('subject').annotate(
-        latest_revision_date=Max('revisions__revision_date')
+        latest_revision_date=Max('sessions__date')
     )
 
     # --- Topic Strength Analytics ---
